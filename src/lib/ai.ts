@@ -179,7 +179,39 @@ export async function generateRAGResponse(
     const searchResults = await searchDocuments(message, domain);
     
     if (searchResults.length === 0) {
-      throw new Error("No relevant documentation found for your question");
+      // Instead of throwing an error, provide a helpful fallback response
+      console.log(`No relevant documents found for query: "${message}"`);
+      
+      // Generate a helpful response asking for more specific questions
+      const completion = await getOpenAIClient().chat.completions.create({
+        model: getOpenAIConfig().chatModel,
+        temperature: getOpenAIConfig().temperature,
+        max_tokens: getOpenAIConfig().maxTokens,
+        messages: [
+          { 
+            role: 'system', 
+            content: `${domainConfig.systemPrompt}
+
+Note: The user's query didn't match specific documentation content, so provide general guidance and ask them to be more specific about their Inngest-related question.`
+          },
+          { 
+            role: 'user', 
+            content: `I asked: "${message}"
+
+I couldn't find specific documentation that matches your question. Could you please provide more details about your Inngest-related issue? For example:
+
+- Are you having trouble with function triggers?
+- Need help with error handling or retries?  
+- Questions about deployment or local development?
+- Issues with specific Inngest features?
+
+The more specific you can be, the better I can help you with detailed guidance and documentation references.`
+          }
+        ],
+        stream: true
+      });
+
+      return { completion, sources: ['inngest-general-help'] };
     }
 
     // Build context for LLM
