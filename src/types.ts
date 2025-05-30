@@ -1,15 +1,16 @@
 // Core types for Inngest Expert Chatbot
 
 export interface ExpertiseDomain {
-    id: string;
     name: string;
-    description: string;
     namespace: string;           // Pinecone namespace
     systemPrompt: string;
     source: string;             // URL or 'manual'
     isActive: boolean;
-    color: string;
-    icon: string;
+    // Optional properties for dynamic domains
+    id?: string;
+    description?: string;
+    color?: string;
+    icon?: string;
   }
   
   export interface ChatMessage {

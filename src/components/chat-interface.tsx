@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { MessageBubble } from './message-bubble';
-import { Send, Loader2, Zap, MessageSquare } from 'lucide-react';
+import { Send, Loader2, Zap, MessageSquare, ExternalLink } from 'lucide-react';
+import { MarkdownRenderer } from './markdown-renderer';
 
 interface ChatMessage {
   id: string;
@@ -17,13 +18,17 @@ interface ChatMessage {
 }
 
 interface StreamData {
-  type: 'metadata' | 'content' | 'done' | 'error';
+  type: 'metadata' | 'content' | 'done' | 'error' | 'completion';
   content?: string;
   sources?: string[];
   domain?: string;
   timestamp?: string;
   error?: string;
   message?: string;
+}
+
+interface ChatInterfaceProps {
+  selectedDomain?: string;
 }
 
 const EXAMPLE_QUESTIONS = [
@@ -35,7 +40,7 @@ const EXAMPLE_QUESTIONS = [
   "How do I deploy Inngest functions to Vercel?"
 ];
 
-export function ChatInterface() {
+export function ChatInterface({ selectedDomain = 'inngest' }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -81,7 +86,7 @@ export function ChatInterface() {
         },
         body: JSON.stringify({
           message: messageText.trim(),
-          domain: 'inngest',
+          domain: selectedDomain,
         }),
       });
 
@@ -124,21 +129,29 @@ export function ChatInterface() {
                   }
                   break;
 
-                case 'done':
-                  // Finalize the assistant message
+                case 'completion':
+                  // Use the final sources from completion event
+                  const finalSources = data.sources || messageSources;
+                  
+                  // Smoothly transition from streaming to final message
                   const finalMessage: ChatMessage = {
                     id: assistantMessageId,
                     role: 'assistant',
                     content: accumulatedContent,
-                    sources: messageSources,
+                    sources: finalSources,
                     timestamp: new Date(),
-                    domain: 'inngest',
+                    domain: selectedDomain,
                   };
                   
+                  // Add the final message first, then clear streaming
                   setMessages(prev => [...prev, finalMessage]);
-                  setStreamingContent('');
-                  setCurrentSources([]);
-                  setIsLoading(false);
+                  
+                  // Small delay for smooth transition
+                  setTimeout(() => {
+                    setStreamingContent('');
+                    setCurrentSources([]);
+                    setIsLoading(false);
+                  }, 100);
                   break;
 
                 case 'error':
@@ -148,7 +161,7 @@ export function ChatInterface() {
                     role: 'assistant',
                     content: `I apologize, but I encountered an error: ${data.error || 'Unknown error'}. Please try asking your question again.`,
                     timestamp: new Date(),
-                    domain: 'inngest',
+                    domain: selectedDomain,
                   };
                   setMessages(prev => [...prev, errorMessage]);
                   setStreamingContent('');
@@ -168,7 +181,7 @@ export function ChatInterface() {
         role: 'assistant',
         content: `I apologize, but I'm having trouble connecting right now. Please check your connection and try again. Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
         timestamp: new Date(),
-        domain: 'inngest',
+        domain: selectedDomain,
       };
       setMessages(prev => [...prev, errorMessage]);
       setIsLoading(false);
@@ -241,24 +254,40 @@ export function ChatInterface() {
           <MessageBubble key={message.id} message={message} />
         ))}
 
-        {/* Streaming message */}
+        {/* Streaming message with improved display */}
         {isLoading && streamingContent && (
           <div className="flex justify-start">
-            <div className="max-w-[80%] rounded-lg px-4 py-3 bg-muted border mr-12">
-              <div className="flex items-center gap-2 mb-2">
+            <div className="max-w-[85%] rounded-lg px-4 py-3 bg-muted border mr-12 relative">
+              <div className="flex items-center gap-2 mb-3">
                 <Badge variant="secondary" className="text-xs">
                   ⚡ Inngest Expert
                 </Badge>
                 <span className="text-xs text-muted-foreground">
                   {new Date().toLocaleTimeString()}
                 </span>
+                <div className="flex items-center gap-1 ml-2">
+                  <div className="w-1 h-1 bg-blue-600 rounded-full animate-pulse"></div>
+                  <div className="w-1 h-1 bg-blue-600 rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></div>
+                  <div className="w-1 h-1 bg-blue-600 rounded-full animate-pulse" style={{animationDelay: '0.4s'}}></div>
+                </div>
               </div>
-              <div className="prose prose-sm max-w-none prose-gray dark:prose-invert">
-                {streamingContent}
-                <span className="inline-block w-2 h-4 bg-blue-600 animate-pulse ml-1" />
-              </div>
+              
+              <MarkdownRenderer 
+                content={streamingContent}
+                className="min-w-0"
+              />
+              
+              {/* Typing cursor */}
+              <span className="inline-block w-0.5 h-4 bg-blue-600 animate-pulse ml-1 relative top-0.5" />
+              
               {currentSources.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-muted-foreground/20">
+                <div className="mt-4 pt-3 border-t border-muted-foreground/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-xs font-medium text-muted-foreground">
+                      Sources ({currentSources.length})
+                    </span>
+                  </div>
                   <div className="flex flex-wrap gap-1">
                     {currentSources.map((source, index) => (
                       <Badge key={index} variant="outline" className="text-xs">

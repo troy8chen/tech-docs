@@ -1,5 +1,5 @@
 import { generateRAGResponse } from '@/lib/ai';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 // Enable streaming for this API route
 export const runtime = 'nodejs';
@@ -9,62 +9,75 @@ export async function POST(request: NextRequest) {
     const { message, domain = 'inngest' } = await request.json();
     
     // Validate input
-    if (!message?.trim()) {
-      return new Response(
-        JSON.stringify({ error: 'Message is required' }),
-        { 
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        }
-      );
+    if (!message || typeof message !== 'string') {
+      return new NextResponse('Message is required', { status: 400 });
     }
 
     console.log(`💬 Chat request: "${message.substring(0, 50)}..." for domain: ${domain}`);
 
     // Generate streaming response
-    const { completion, sources } = await generateRAGResponse(message.trim(), domain);
+    const { completion, sources } = await generateRAGResponse(message, domain);
+
+    const encoder = new TextEncoder();
+    let accumulatedContent = '';
 
     // Create a readable stream for the response
     const stream = new ReadableStream({
       async start(controller) {
-        const encoder = new TextEncoder();
-        
         try {
-          // Send initial metadata with sources
-          const initialData = {
+          // Send initial metadata
+          const metadata = {
             type: 'metadata',
-            sources,
-            domain,
-            timestamp: new Date().toISOString()
+            sources: sources
           };
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(initialData)}\n\n`));
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(metadata)}\n\n`));
           
           // Stream the completion
           for await (const chunk of completion) {
             const content = chunk.choices[0]?.delta?.content || '';
             
             if (content) {
-              const streamData = {
-                type: 'content',
-                content
-              };
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify(streamData)}\n\n`));
+              accumulatedContent += content;
+              const data = { type: 'content', content };
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
             }
           }
           
-          // Send completion signal
-          const doneData = {
-            type: 'done',
-            message: 'Response completed'
+          // Extract additional URLs from the completed response
+          const additionalUrls = new Set<string>();
+          const urlPatterns = [
+            /https:\/\/(?:www\.)?inngest\.com\/docs\/[^\s\)\]\,\;]+/g,
+            /https:\/\/(?:www\.)?inngest\.com\/docs\/guides\/[^\s\)\]\,\;]+/g,
+            /https:\/\/(?:www\.)?inngest\.com\/docs\/reference\/[^\s\)\]\,\;]+/g,
+            /https:\/\/(?:www\.)?inngest\.com\/blog\/[^\s\)\]\,\;]+/g
+          ];
+          
+          urlPatterns.forEach(pattern => {
+            const matches = accumulatedContent.match(pattern);
+            if (matches) {
+              matches.forEach(url => {
+                const cleanUrl = url.replace(/[.,;:!?\]\)]*$/, '').replace(/#.*$/, '');
+                if (cleanUrl.length > 20 && !sources.includes(cleanUrl)) {
+                  additionalUrls.add(cleanUrl);
+                }
+              });
+            }
+          });
+
+          // Combine original sources with additional URLs found in response
+          const finalSources = [...sources, ...Array.from(additionalUrls)];
+
+          // Send completion signal with final sources
+          const completionEvent = {
+            type: 'completion',
+            sources: finalSources
           };
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(doneData)}\n\n`));
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(completionEvent)}\n\n`));
           
         } catch (error) {
-          console.error('Error during streaming:', error);
-          const errorData = {
-            type: 'error',
-            error: error instanceof Error ? error.message : 'Unknown error occurred'
-          };
+          console.error('Streaming error:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          const errorData = { type: 'error', error: errorMessage };
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorData)}\n\n`));
         } finally {
           controller.close();
@@ -73,10 +86,10 @@ export async function POST(request: NextRequest) {
     });
 
     // Return streaming response
-    return new Response(stream, {
+    return new NextResponse(stream, {
       headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
         'Connection': 'keep-alive',
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'POST',
@@ -86,17 +99,11 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Chat API error:', error);
-    
-    return new Response(
-      JSON.stringify({ 
-        error: 'Failed to process chat request',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      }),
-      { 
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      }
-    );
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    return new NextResponse(JSON.stringify({ error: errorMessage }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }
 

@@ -15,12 +15,14 @@
 - **RAG Architecture**: Retrieval-Augmented Generation with Pinecone vector database
 - **Inngest Knowledge**: Trained on official Inngest documentation (1M+ characters, 1,444+ chunks)
 - **Streaming Responses**: Real-time GPT-4 responses with live typing indicators
+- **Academic Citations**: Clean numbered citations with clickable references section
 - **Source Citations**: Every answer includes relevant documentation sources
 
 ### 💬 Professional Chat Interface
 - **Modern UI**: Shadcn/UI components with Tailwind CSS styling
+- **Syntax Highlighting**: Professional code blocks with copy functionality
 - **Responsive Design**: Mobile-first approach, works on all devices
-- **Copy Functionality**: One-click copy for code snippets and responses
+- **Academic Style**: Clean numbered citations for better readability
 - **Example Questions**: Quick-start prompts for common Inngest scenarios
 
 ### 🔧 Technical Excellence
@@ -34,36 +36,91 @@
 
 ### Prerequisites
 - Node.js 18+ 
-- OpenAI API key
-- Pinecone account and API key
+- OpenAI API account
+- Pinecone account
 
 ### 1. Clone & Install
 ```bash
-git clone https://github.com/troy8chen/tech-docs.git
-cd tech-docs
+git clone <your-repo-url>
+cd inngest-document-app
 npm install
 ```
 
-### 2. Environment Setup
-Create `.env.local`:
+### 2. API Setup
+
+#### 🔑 OpenAI API Setup
+1. **Create OpenAI Account**
+   - Visit [https://platform.openai.com](https://platform.openai.com)
+   - Sign up or log in to your account
+
+2. **Generate API Key**
+   - Go to [API Keys page](https://platform.openai.com/account/api-keys)
+   - Click "Create new secret key"
+   - Name it (e.g., "Inngest Chatbot")
+   - Copy the key (starts with `sk-...`)
+   - ⚠️ **Save it immediately** - you won't see it again!
+
+3. **Add Billing Method**
+   - Go to [Billing](https://platform.openai.com/account/billing)
+   - Add a payment method
+   - Set usage limits if desired
+   - Note: You'll need credits for GPT-4 and embeddings
+
+#### 🌲 Pinecone Setup
+1. **Create Pinecone Account**
+   - Visit [https://pinecone.io](https://pinecone.io)
+   - Sign up for free account (includes 1 index)
+
+2. **Create Index**
+   - Go to [Pinecone Console](https://app.pinecone.io/)
+   - Click "Create Index"
+   - **Index Name**: `tech-docs` (or your preferred name)
+   - **Dimensions**: `1536` (for OpenAI text-embedding-3-small)
+   - **Metric**: `cosine`
+   - **Cloud**: Choose your preferred region
+   - Click "Create Index"
+
+3. **Get API Key**
+   - In Pinecone Console, go to "API Keys"
+   - Copy your API key
+   - Note your environment/region
+
+### 3. Environment Setup
+Create `.env` file in your project root:
 ```bash
-OPENAI_API_KEY=sk-...                    # Your OpenAI API key
-PINECONE_API_KEY=...                     # Your Pinecone API key  
-PINECONE_INDEX_NAME=tech-docs            # Pinecone index name
+# OpenAI Configuration
+OPENAI_API_KEY=sk-...                    # Your OpenAI API key from step 2
+
+# Pinecone Configuration  
+PINECONE_API_KEY=...                     # Your Pinecone API key
+PINECONE_INDEX_NAME=tech-docs            # Must match your Pinecone index name
 ```
 
-### 3. Initialize Knowledge Base
-```bash
-# Ingest Inngest documentation
-npm run ingest
-```
+**⚠️ Important Notes:**
+- Use `.env` (not `.env.local`) for this project
+- Never commit your `.env` file to version control
+- Keep your API keys secure and private
 
-### 4. Start Development
+### 4. Initialize Knowledge Base
 ```bash
+# Ingest Inngest documentation (takes ~2-3 minutes)
 npm run dev
 ```
+Then visit the upload page at `http://localhost:3000` and click the "Upload" tab to ingest the Inngest documentation automatically.
 
-Visit [http://localhost:3000](http://localhost:3000) and start chatting!
+### 5. Start Chatting!
+Visit [http://localhost:3000](http://localhost:3000) and start asking Inngest questions!
+
+## 💰 Cost Estimates
+
+### OpenAI Costs (approximate)
+- **Initial Setup**: ~$2-5 for document ingestion (one-time)
+- **Daily Usage**: ~$0.10-0.50 for typical development use
+- **Per Query**: ~$0.01-0.03 (depends on context length)
+
+### Pinecone Costs
+- **Free Tier**: 1 index, 5M vectors (sufficient for this project)
+- **Paid Plans**: Start at $70/month for production use
 
 ## 🏗️ Architecture
 
@@ -75,25 +132,27 @@ src/
 │   ├── docs.ts        # Document ingestion and chunking
 │   └── config.ts      # Domain configurations
 ├── app/api/
-│   └── chat/route.ts  # Streaming chat API endpoint
+│   ├── chat/route.ts  # Streaming chat API endpoint
+│   └── ingest/route.ts # Document upload API
 ├── components/
-│   ├── chat-interface.tsx    # Main chat UI
-│   └── message-bubble.tsx    # Individual message display
+│   ├── chat-interface.tsx     # Main chat UI
+│   ├── message-bubble.tsx     # Individual message display
+│   └── markdown-renderer.tsx  # Academic citation rendering
 └── types.ts           # TypeScript interfaces
 ```
 
 ### RAG Pipeline
-1. **Query Embedding**: User question → OpenAI text-embedding-3-small
-2. **Vector Search**: Pinecone cosine similarity search (top 5 results)
-3. **Context Assembly**: Relevant chunks + system prompt
-4. **Response Generation**: GPT-4 streaming completion
-5. **Source Citation**: Return chunks with relevance scores
+1. **Query Embedding**: User question → OpenAI text-embedding-3-small (1536 dimensions)
+2. **Vector Search**: Pinecone cosine similarity search (top 5 results, 0.4 threshold)
+3. **Context Assembly**: Relevant chunks + domain-specific system prompt
+4. **Response Generation**: GPT-4 streaming completion with source extraction
+5. **Citation Processing**: Academic-style numbered citations with references section
 
 ### Pinecone Configuration
 - **Index**: `tech-docs` (1536 dimensions, cosine metric)
 - **Namespace**: `inngest-docs` (isolated domain knowledge)
-- **Chunking**: Section-aware splitting preserving context
-- **Metadata**: Source references and section identifiers
+- **Chunking**: Section-aware splitting (~1000 chars) preserving context
+- **Metadata**: Source references, sections, and domain isolation
 
 ## 🎯 Usage Examples
 
@@ -109,7 +168,8 @@ src/
 
 ### Response Quality
 - **Expert-level guidance** matching Inngest Developer Success Engineer expertise
-- **Step-by-step instructions** with code examples
+- **Step-by-step instructions** with syntax-highlighted code examples
+- **Academic citations** with numbered references for clean reading
 - **Best practices** for production deployments
 - **Troubleshooting workflows** for common issues
 - **Architectural advice** for complex workflows
@@ -119,59 +179,109 @@ src/
 ### Key Scripts
 ```bash
 npm run dev          # Start development server
-npm run build        # Production build
+npm run build        # Production build  
 npm run lint         # ESLint checking
-npm run ingest       # Ingest documentation
+npm start           # Start production server
 ```
 
 ### Adding New Knowledge Domains
 1. Update `src/lib/config.ts` with new domain configuration
-2. Add ingestion logic in `src/lib/docs.ts`
-3. Create dedicated Pinecone namespace
+2. Use the upload interface to add new documentation
+3. Automatic Pinecone namespace creation
 4. Test with domain-specific queries
 
 ### Environment Variables
 ```bash
 # Required
-OPENAI_API_KEY=sk-...
-PINECONE_API_KEY=...
-PINECONE_INDEX_NAME=tech-docs
+OPENAI_API_KEY=sk-...                    # OpenAI API key
+PINECONE_API_KEY=...                     # Pinecone API key  
+PINECONE_INDEX_NAME=tech-docs            # Pinecone index name
 
-# Optional
+# Optional  
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
+
+## 🚀 Deployment
+
+### Vercel (Recommended)
+```bash
+# Deploy to Vercel
+npx vercel --prod
+
+# Add environment variables in Vercel dashboard:
+# - OPENAI_API_KEY
+# - PINECONE_API_KEY  
+# - PINECONE_INDEX_NAME
+```
+
+### Other Platforms
+- **Railway**: Add environment variables and deploy
+- **Netlify**: Configure build settings and environment variables
+- **Docker**: Use the included Dockerfile for containerized deployment
 
 ## 🏆 Performance Metrics
 
 ### Knowledge Base Coverage
 - **✅ 95% Coverage**: 19/20 major Inngest documentation sections
-- **✅ 1,444 Chunks**: Comprehensive knowledge representation
+- **✅ 1,444 Chunks**: Comprehensive knowledge representation  
 - **✅ Expert Responses**: Production-ready guidance and troubleshooting
 
 ### Search Quality
 - **Relevance Threshold**: 0.4 (optimized for Inngest domain)
 - **Average Response Time**: <2 seconds for complex queries
 - **Source Attribution**: 100% of responses include documentation references
+- **Citation Style**: Academic numbered references for clean reading
 
 ## 🔮 Roadmap
 
 ### Phase 1 (Complete) ✅
 - [x] RAG infrastructure with Pinecone
-- [x] Inngest documentation ingestion
+- [x] Inngest documentation ingestion  
 - [x] Streaming chat interface
 - [x] Professional UI/UX
 
-### Phase 2 (Planned)
-- [ ] Document upload API for custom knowledge
-- [ ] Multi-domain support (Next.js, React docs)
-- [ ] Conversation history persistence
-- [ ] Admin dashboard for knowledge management
+### Phase 2 (Complete) ✅  
+- [x] Document upload API for custom knowledge
+- [x] Multi-domain support with dynamic domain creation
+- [x] Enhanced markdown rendering with syntax highlighting
+- [x] Academic citation style with numbered references
+- [x] Professional upload interface (files, URLs, text)
 
 ### Phase 3 (Future)
-- [ ] Plugin system for external integrations
+- [ ] Conversation history persistence
 - [ ] Advanced analytics and usage metrics
 - [ ] Team collaboration features
 - [ ] API endpoints for external applications
+
+### Phase 4 (Potential)
+- [ ] Plugin system for external integrations
+- [ ] Advanced file format support (PDF, DOCX)
+- [ ] Real-time collaboration features  
+- [ ] Enterprise SSO and user management
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+#### "OpenAI API Error"
+- Check your API key is correct and has credits
+- Verify billing is set up in OpenAI dashboard
+- Ensure you have access to GPT-4 (may require usage history)
+
+#### "Pinecone Connection Failed"
+- Verify your Pinecone API key and index name
+- Check index dimensions are set to 1536
+- Ensure index uses cosine metric
+
+#### "No Knowledge Base Found"
+- Run the ingestion process via the upload interface
+- Check that documents were successfully stored in Pinecone
+- Verify namespace `inngest-docs` exists in your index
+
+#### "Build Errors"
+- Clear Next.js cache: `rm -rf .next`
+- Reinstall dependencies: `rm -rf node_modules && npm install`
+- Check Node.js version (requires 18+)
 
 ## 🤝 Contributing
 

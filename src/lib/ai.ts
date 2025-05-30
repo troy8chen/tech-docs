@@ -1,6 +1,6 @@
 import { Pinecone } from '@pinecone-database/pinecone';
 import OpenAI from 'openai';
-import { getPineconeConfig, getOpenAIConfig, TECH_DOCS } from './config';
+import { getPineconeConfig, getOpenAIConfig, TECH_DOMAINS } from './config';
 import type { VectorSearchResult, DocumentChunk } from '@/types';
 
 // Lazy initialization of clients
@@ -61,7 +61,7 @@ export async function searchDocuments(
   topK: number = getPineconeConfig().topK
 ): Promise<VectorSearchResult[]> {
   try {
-    const domainConfig = TECH_DOCS[domain];
+    const domainConfig = TECH_DOMAINS[domain];
     if (!domainConfig?.isActive) {
       throw new Error(`Domain '${domain}' is not active or doesn't exist`);
     }
@@ -112,7 +112,7 @@ export async function storeDocuments(
   domain: string
 ): Promise<number> {
   try {
-    const domainConfig = TECH_DOCS[domain];
+    const domainConfig = TECH_DOMAINS[domain];
     if (!domainConfig) {
       throw new Error(`Domain '${domain}' doesn't exist`);
     }
@@ -170,7 +170,7 @@ export async function generateRAGResponse(
   domain: string
 ): Promise<{ completion: AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>; sources: string[] }> {
   try {
-    const domainConfig = TECH_DOCS[domain];
+    const domainConfig = TECH_DOMAINS[domain];
     if (!domainConfig?.isActive) {
       throw new Error(`Domain '${domain}' is not active`);
     }
@@ -187,7 +187,51 @@ export async function generateRAGResponse(
       .map(result => `Source: ${result.source}\nContent: ${result.content}`)
       .join('\n\n---\n\n');
 
-    const sources = [...new Set(searchResults.map(result => result.source).filter(Boolean))];
+    // Extract URLs from search results content with broader patterns
+    const allUrls = new Set<string>();
+    
+    searchResults.forEach(result => {
+      // Look for any Inngest URLs (docs, guides, blog, etc.)
+      const urlPatterns = [
+        /https:\/\/(?:www\.)?inngest\.com\/docs\/[^\s\)\]\,\;]+/g,
+        /https:\/\/(?:www\.)?inngest\.com\/docs\/guides\/[^\s\)\]\,\;]+/g,
+        /https:\/\/(?:www\.)?inngest\.com\/docs\/reference\/[^\s\)\]\,\;]+/g,
+        /https:\/\/(?:www\.)?inngest\.com\/blog\/[^\s\)\]\,\;]+/g,
+        /https:\/\/(?:www\.)?inngest\.com\/[^\s\)\]\,\;]+/g
+      ];
+      
+      urlPatterns.forEach(pattern => {
+        const matches = result.content.match(pattern);
+        if (matches) {
+          matches.forEach(url => {
+            // Clean up trailing characters and fragments
+            const cleanUrl = url.replace(/[.,;:!?\]\)]*$/, '').replace(/#.*$/, '');
+            if (cleanUrl.length > 20) { // Only include substantial URLs
+              allUrls.add(cleanUrl);
+            }
+          });
+        }
+      });
+    });
+
+    // Convert to array and sort for consistent display
+    let sources = Array.from(allUrls).sort();
+
+    // If no URLs found, fall back to section names
+    if (sources.length === 0) {
+      const sections = new Set<string>();
+      searchResults.forEach(result => {
+        if (result.metadata?.section && typeof result.metadata.section === 'string') {
+          sections.add(`Inngest Docs: ${result.metadata.section}`);
+        }
+      });
+      sources = Array.from(sections);
+    }
+
+    // If still no sources, use domain name as fallback
+    if (sources.length === 0) {
+      sources = ['inngest-official-docs'];
+    }
 
     // Generate streaming response
     const completion = await getOpenAIClient().chat.completions.create({
@@ -208,7 +252,7 @@ ${contextText}
 
 QUESTION: ${message}
 
-Please provide a detailed, practical response as a Developer Success Engineer would. Include code examples if relevant, and reference the documentation sources.`
+Please provide a detailed, practical response as a Developer Success Engineer would. When referencing specific Inngest features or concepts, include the actual documentation URLs (like https://www.inngest.com/docs/functions/triggers) to help users find more detailed information. Include code examples if relevant, and be specific about implementation steps.`
         }
       ],
       stream: true

@@ -1,62 +1,91 @@
 import type { ExpertiseDomain } from '@/types';
 
-// Tech documentation domains configuration
-export const TECH_DOCS: Record<string, ExpertiseDomain> = {
+// Domain configurations - now mutable for dynamic additions
+export const TECH_DOMAINS: Record<string, ExpertiseDomain> = {
   inngest: {
-    id: 'inngest',
-    name: 'Inngest Developer Success Engineer',
-    description: 'Expert help with Inngest implementation, troubleshooting, and architecture',
-    namespace: 'inngest-docs',
-    systemPrompt: `You are an expert Inngest Developer Success Engineer with deep knowledge of event-driven workflows and durable execution.
+    name: "Inngest Developer Success Engineer",
+    namespace: "inngest-docs",
+    systemPrompt: `You are an expert Inngest Developer Success Engineer with deep knowledge of the Inngest platform. 
 
-Your role is to:
-- Help developers implement Inngest functions step-by-step
-- Debug complex technical issues with systematic approaches
-- Provide architectural guidance for workflow design, event patterns, error handling
-- Offer code examples and best practices for performance optimization
-- Share retry strategies, monitoring approaches, and integration patterns
-- Maintain a professional but approachable tone
-- Assume developer competence but explain complex concepts clearly
-- Focus on practical, real-world solutions over theoretical discussions
+Your role is to provide:
+- **Expert Implementation Guidance**: Step-by-step instructions for implementing Inngest functions, workflows, and integrations
+- **Architectural Advice**: Best practices for designing reliable, scalable event-driven systems
+- **Troubleshooting Help**: Systematic approaches to debugging common issues
+- **Production Readiness**: Guidance on error handling, retries, monitoring, and deployment strategies
 
-Always provide actionable advice with code examples when relevant, and reference the official Inngest documentation.`,
-    source: 'https://www.inngest.com/llms-full.txt',
+**Response Guidelines:**
+- Provide practical, actionable advice with specific code examples
+- Include relevant Inngest documentation URLs when referencing specific features (e.g., https://www.inngest.com/docs/functions/triggers)
+- Use technical precision but remain accessible to developers of all levels
+- Focus on real-world solutions over theoretical discussions
+- Always consider production reliability and best practices
+
+**When providing documentation references:**
+- Include specific Inngest documentation URLs (https://www.inngest.com/docs/...) 
+- Reference actual guide pages, reference docs, or blog posts when available
+- Avoid generic citations - use actual URLs to help users find detailed information
+
+You have access to comprehensive Inngest documentation to provide accurate, up-to-date guidance.`,
+    source: "https://www.inngest.com/llms-full.txt",
     isActive: true,
-    color: 'blue',
-    icon: '⚡'
-  },
-  // Future domains can be added here
-  nextjs: {
-    id: 'nextjs',
-    name: 'Next.js Expert',
-    description: 'Next.js implementation and best practices',
-    namespace: 'nextjs-docs',
-    systemPrompt: 'You are a Next.js expert specializing in App Router, Server Components, and performance optimization.',
-    source: 'manual',
-    isActive: false,
-    color: 'black',
-    icon: '▲'
+    icon: "⚡",
+    description: "Expert help with Inngest implementation and troubleshooting"
   }
-} as const;
+};
 
-// Dynamic configuration functions to avoid environment variable timing issues
+// Client-safe helper functions for domain management
+export function getDomainConfig(domain: string): ExpertiseDomain | null {
+  return TECH_DOMAINS[domain] || null;
+}
+
+export function getActiveDomains(): Record<string, ExpertiseDomain> {
+  return Object.fromEntries(
+    Object.entries(TECH_DOMAINS).filter(([, config]) => config.isActive)
+  );
+}
+
+export function addDomain(domain: string, config: ExpertiseDomain): void {
+  TECH_DOMAINS[domain] = config;
+}
+
+// Server-only configuration functions (only call these in API routes or server components)
 export function getPineconeConfig() {
+  // Only run on server side
+  if (typeof window !== 'undefined') {
+    throw new Error('getPineconeConfig can only be called on the server side');
+  }
+  
+  const apiKey = process.env.PINECONE_API_KEY;
+  const indexName = process.env.PINECONE_INDEX_NAME || 'tech-docs';
+  
+  if (!apiKey) {
+    throw new Error('PINECONE_API_KEY environment variable is required');
+  }
+  
   return {
-    apiKey: process.env.PINECONE_API_KEY!,
-    indexName: process.env.PINECONE_INDEX_NAME || 'tech-docs',
-    environment: process.env.PINECONE_ENVIRONMENT || 'us-east-1',
-    dimensions: 1536,
-    metric: 'cosine' as const,
+    apiKey,
+    indexName,
     topK: 5,
     minScore: 0.4
   };
 }
 
 export function getOpenAIConfig() {
+  // Only run on server side
+  if (typeof window !== 'undefined') {
+    throw new Error('getOpenAIConfig can only be called on the server side');
+  }
+  
+  const apiKey = process.env.OPENAI_API_KEY;
+  
+  if (!apiKey) {
+    throw new Error('OPENAI_API_KEY environment variable is required');
+  }
+  
   return {
-    apiKey: process.env.OPENAI_API_KEY!,
+    apiKey,
     embeddingModel: 'text-embedding-3-small' as const,
-    chatModel: 'gpt-4o-mini' as const,
+    chatModel: 'gpt-4' as const,
     temperature: 0.1,
     maxTokens: 2048
   };
@@ -71,6 +100,5 @@ export const DOC_CONFIG = {
   rateLimit: 1000 // ms between batches
 };
 
-// Legacy exports for backward compatibility (will be removed)
-export const PINECONE_CONFIG = getPineconeConfig();
-export const OPENAI_CONFIG = getOpenAIConfig();
+// Note: PINECONE_CONFIG and OPENAI_CONFIG legacy exports removed
+// Use getPineconeConfig() and getOpenAIConfig() functions in server-side code only
