@@ -39,3 +39,21 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Cursor / AI Development Tools
+.cursor/
+.cursorrules
+.cursor-session/
+.vscode/settings.json
+
+# AI and Development Secrets
+*.key
+*.secret
+secrets/
+.aider*
+
+# Temporary and test files
+/scripts/*test*.ts
+/scripts/debug-*.ts
+temp/
+/tmp/
