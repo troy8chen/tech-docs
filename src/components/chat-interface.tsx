@@ -221,30 +221,32 @@ export function ChatInterface({ selectedDomain = 'inngest' }: ChatInterfaceProps
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && (
-          <div className="text-center space-y-6 mt-8">
-            <div className="space-y-2">
-              <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto" />
-              <h2 className="text-lg font-medium">Welcome to Inngest Expert Support</h2>
-              <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                I&apos;m your AI-powered Developer Success Engineer. I can help you with Inngest implementation, 
-                troubleshooting, and architectural guidance based on the official documentation.
-              </p>
-            </div>
-            
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium">Try asking:</h3>
-              <div className="grid gap-2 max-w-2xl mx-auto">
-                {EXAMPLE_QUESTIONS.map((question, index) => (
-                  <Button
-                    key={index}
-                    variant="outline"
-                    className="text-left justify-start h-auto p-3 text-sm"
-                    onClick={() => sendMessage(question)}
-                    disabled={isLoading}
-                  >
-                    {question}
-                  </Button>
-                ))}
+          <div className="flex items-center justify-center min-h-full">
+            <div className="text-center space-y-6 max-w-3xl w-full px-4">
+              <div className="space-y-3">
+                <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto" />
+                <h2 className="text-xl font-semibold">Welcome to Inngest Expert Support</h2>
+                <p className="text-sm text-muted-foreground max-w-lg mx-auto leading-relaxed">
+                  I&apos;m your AI-powered Developer Success Engineer. I can help you with Inngest implementation, 
+                  troubleshooting, and architectural guidance based on the official documentation.
+                </p>
+              </div>
+              
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium text-gray-700">Try asking:</h3>
+                <div className="grid gap-2 max-w-2xl mx-auto">
+                  {EXAMPLE_QUESTIONS.map((question, index) => (
+                    <Button
+                      key={index}
+                      variant="outline"
+                      className="text-left justify-start h-auto p-3 text-sm hover:bg-blue-50 transition-colors"
+                      onClick={() => sendMessage(question)}
+                      disabled={isLoading}
+                    >
+                      {question}
+                    </Button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
