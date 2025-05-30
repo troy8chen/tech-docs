@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "ingest": "tsx scripts/ingest-docs.ts"
+    "ingest": "tsx scripts/ingest-docs.ts",
+    "rag-worker": "tsx scripts/rag-worker.ts"
   },
   "dependencies": {
     "@pinecone-database/pinecone": "^6.0.1",
@@ -19,6 +20,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dotenv": "^16.5.0",
+    "ioredis": "^5.6.1",
     "lucide-react": "^0.511.0",
     "next": "15.3.3",
     "openai": "^5.0.1",
