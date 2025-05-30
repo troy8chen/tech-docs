@@ -198,14 +198,31 @@ Note: The user's query didn't match specific documentation content, so provide g
             role: 'user', 
             content: `I asked: "${message}"
 
-I couldn't find specific documentation that matches your question. Could you please provide more details about your Inngest-related issue? For example:
+I couldn't find specific documentation that matches your question. Could you please provide more details about your Inngest-related issue? 
 
-- Are you having trouble with function triggers?
-- Need help with error handling or retries?  
-- Questions about deployment or local development?
-- Issues with specific Inngest features?
+**For production-grade guidance, consider asking about:**
 
-The more specific you can be, the better I can help you with detailed guidance and documentation references.`
+**🏗️ Scale & Performance:**
+- "How do I process 1000+ items efficiently with Inngest?"
+- "What are optimal batch sizes for database operations?"
+- "How do I handle memory issues with large datasets?"
+
+**🛡️ Error Handling & Reliability:**
+- "How do I implement retry strategies for failed batches?"
+- "What's the best way to handle partial failures?"
+- "How do I set up dead letter queues for failed events?"
+
+**⚙️ Configuration & Optimization:**
+- "What concurrency limits should I use for my use case?"
+- "How do I optimize function timeouts for production?"
+- "What are best practices for database connection pooling?"
+
+**🚀 Deployment & Monitoring:**
+- "How do I deploy Inngest functions to production?"
+- "What monitoring should I implement for reliability?"
+- "How do I test Inngest functions at scale?"
+
+The more specific you can be about your **production scenario, scale, and constraints**, the better I can provide enterprise-ready solutions with concrete configurations and performance guidance.`
           }
         ],
         stream: true
@@ -284,7 +301,15 @@ ${contextText}
 
 QUESTION: ${message}
 
-Please provide a detailed, practical response as a Developer Success Engineer would. When referencing specific Inngest features or concepts, include the actual documentation URLs (like https://www.inngest.com/docs/functions/triggers) to help users find more detailed information. Include code examples if relevant, and be specific about implementation steps.`
+Please provide a comprehensive, production-ready response that includes:
+
+1. **Core Solution**: Basic implementation approach
+2. **Production Scale**: How this works with 1000+ items, database considerations, memory usage
+3. **Specific Configuration**: Exact batch sizes, concurrency limits, timeout values
+4. **Error Handling**: Comprehensive failure scenarios and recovery patterns
+5. **Performance Analysis**: Expected timing, resource usage, and tradeoffs
+
+Include specific Inngest documentation URLs when referencing features. Always consider real-world production constraints and provide concrete, actionable guidance with specific numbers and configurations.`
         }
       ],
       stream: true
