@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "ingest": "tsx scripts/ingest-docs.ts",
-    "rag-worker": "tsx scripts/rag-worker.ts"
+    "rag-worker": "tsx scripts/rag-worker.ts",
+    "workflow": "chmod +x scripts/git-workflow.sh && ./scripts/git-workflow.sh"
   },
   "dependencies": {
     "@pinecone-database/pinecone": "^6.0.1",

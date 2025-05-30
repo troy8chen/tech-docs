@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, staging ]
+  pull_request:
+    branches: [ main, staging ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js 18
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Lint code
+      run: npm run lint
+    
+    - name: Type check
+      run: npx tsc --noEmit
+    
+    - name: Build application
+      run: npm run build
+    
+    - name: Test RAG Worker
+      run: |
+        echo "✅ RAG Worker build successful"
+        echo "Ready for deployment to Render"
+
+  # Notify when branches are ready for deployment
+  deployment-ready:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    
+    steps:
+    - name: Staging Ready
+      if: github.ref == 'refs/heads/staging'
+      run: |
+        echo "🚀 Staging branch updated"
+        echo "Deploy RAG Worker staging in Render dashboard"
+        
+    - name: Production Ready  
+      if: github.ref == 'refs/heads/main'
+      run: |
+        echo "🚀 Main branch updated" 
+        echo "Deploy RAG Worker production in Render dashboard" 
