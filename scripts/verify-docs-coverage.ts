@@ -54,7 +54,7 @@ async function verifyDocsCoverage() {
       }
     } catch (error) {
       results.push({ query, found: false });
-      console.log(`❌ ${query}: Error - ${error.message}`);
+      console.log(`❌ ${query}: Error - ${error instanceof Error ? error.message : String(error)}`);
     }
   }
   

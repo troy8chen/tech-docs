@@ -51,7 +51,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
 
   const renderTextWithCitations = (text: string) => {
     // First handle markdown links
-    let processedText = text.replace(markdownLinkPattern, (match, linkText, url) => {
+    const processedText = text.replace(markdownLinkPattern, (match, linkText, url) => {
       const cleanUrl = url.replace(/[.,;:!?\]\)]*$/, '');
       const citationIndex = uniqueUrls.indexOf(cleanUrl) + 1;
       return citationIndex > 0 ? `[${citationIndex}]` : linkText;
@@ -74,9 +74,9 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
     });
   };
 
-  const renderContent = (text: string): JSX.Element[] => {
+  const renderContent = (text: string): React.ReactElement[] => {
     const lines = text.split('\n');
-    const result: JSX.Element[] = [];
+    const result: React.ReactElement[] = [];
     let i = 0;
     let codeBlockIndex = 0;
 
@@ -164,7 +164,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
 
       // Lists
       if (line.match(/^\d+\.\s/)) {
-        const listItems: JSX.Element[] = [];
+        const listItems: React.ReactElement[] = [];
         while (i < lines.length && lines[i].match(/^\d+\.\s/)) {
           listItems.push(
             <li key={i} className="mb-1">
@@ -182,7 +182,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
       }
 
       if (line.startsWith('- ') || line.startsWith('* ')) {
-        const listItems: JSX.Element[] = [];
+        const listItems: React.ReactElement[] = [];
         while (i < lines.length && (lines[i].startsWith('- ') || lines[i].startsWith('* '))) {
           listItems.push(
             <li key={i} className="mb-1">

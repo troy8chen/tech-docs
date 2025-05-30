@@ -110,7 +110,7 @@ export function MarkdownRenderer({ content, isUser = false, className }: Markdow
       // Handle numbered lists
       else if (/^\d+\.\s/.test(line)) {
         const listItems: React.ReactNode[] = [];
-        let listStartIndex = i;
+        const listStartIndex = i;
         
         while (i < lines.length && /^\d+\.\s/.test(lines[i])) {
           const itemText = lines[i].replace(/^\d+\.\s/, '');
@@ -132,7 +132,7 @@ export function MarkdownRenderer({ content, isUser = false, className }: Markdow
       // Handle bullet lists
       else if (line.startsWith('- ') || line.startsWith('* ')) {
         const listItems: React.ReactNode[] = [];
-        let listStartIndex = i;
+        const listStartIndex = i;
         
         while (i < lines.length && (lines[i].startsWith('- ') || lines[i].startsWith('* '))) {
           const itemText = lines[i].substring(2);

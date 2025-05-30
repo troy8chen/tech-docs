@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { ChatInterface } from './chat-interface';
 import { UploadInterface } from './upload-interface';
 import { DomainSelector } from './domain-selector';
-import { MessageSquare, Upload, Zap, Settings } from 'lucide-react';
+import { MessageSquare, Upload, Zap } from 'lucide-react';
 
 export function AppLayout() {
   const [selectedDomain, setSelectedDomain] = useState('inngest');
