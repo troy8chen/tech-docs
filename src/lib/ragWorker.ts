@@ -1,5 +1,5 @@
 import Redis from 'ioredis';
-import { generateRAGResponse } from './ai'; // ← Your existing function!
+import { generateRAGResponse, classifyQuery } from './ai'; // Add classifyQuery import
 
 interface RAGQueryEvent {
   id: string;
@@ -70,9 +70,53 @@ export class RAGWorker {
     }
   }
 
+  /**
+   * Returns a standard response for generic queries
+   */
+  private getGenericResponse(): { response: string; sources: string[] } {
+    return {
+      response: `👋 Hi there! I'm the Inngest documentation assistant.
+
+Ask me specific questions about:
+• Functions and workflows
+• Event handling and triggers  
+• Deployment and scaling
+• SDK usage and examples
+
+📖 **Browse the full docs:** https://www.inngest.com/docs
+💬 **Join the community:** https://discord.gg/inngest`,
+      sources: ['https://www.inngest.com/docs', 'https://discord.gg/inngest']
+    };
+  }
+
   private async processRAGQuery(event: RAGQueryEvent): Promise<void> {
     try {
-      // 🎯 USE YOUR EXISTING FUNCTION - NO CHANGES NEEDED!
+      // 🤖 USE AI TO CLASSIFY QUERY (cheap classification call)
+      console.log(`🔍 Classifying query: ${event.id.substring(0, 8)}...`);
+      const queryType = await classifyQuery(event.message);
+      
+      if (queryType === 'generic') {
+        console.log(`🔄 Generic query detected: ${event.id.substring(0, 8)}... (skipping expensive AI)`);
+        
+        const { response, sources } = this.getGenericResponse();
+        
+        const quickResponse: RAGResponseEvent = {
+          id: event.id,
+          userId: event.userId,
+          channelId: event.channelId,
+          response: response,
+          sources: sources,
+          success: true,
+          timestamp: Date.now()
+        };
+
+        await this.redis.publish('rag:response', JSON.stringify(quickResponse));
+        console.log(`⚡ Quick response sent: ${event.id.substring(0, 8)}...`);
+        return;
+      }
+
+      // 🎯 USE EXPENSIVE AI FOR SPECIFIC TECHNICAL QUESTIONS
+      console.log(`🧠 Technical query - full AI processing: ${event.id.substring(0, 8)}...`);
       const { completion, sources } = await generateRAGResponse(
         event.message, 
         event.domain || 'inngest'
@@ -85,7 +129,7 @@ export class RAGWorker {
         fullResponse += content;
       }
 
-      // Send success response
+      // Send AI response
       const response: RAGResponseEvent = {
         id: event.id,
         userId: event.userId,
@@ -97,7 +141,7 @@ export class RAGWorker {
       };
 
       await this.redis.publish('rag:response', JSON.stringify(response));
-      console.log(`✅ Completed query: ${event.id.substring(0, 8)}...`);
+      console.log(`✅ AI response completed: ${event.id.substring(0, 8)}...`);
 
     } catch (error) {
       console.error(`❌ Failed to process query: ${event.id}`, error);

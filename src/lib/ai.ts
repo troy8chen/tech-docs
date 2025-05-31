@@ -242,11 +242,16 @@ The more specific you can be about your **production scenario, scale, and constr
     searchResults.forEach(result => {
       // Look for any Inngest URLs (docs, guides, blog, etc.)
       const urlPatterns = [
-        /https:\/\/(?:www\.)?inngest\.com\/docs\/[^\s\)\]\,\;]+/g,
-        /https:\/\/(?:www\.)?inngest\.com\/docs\/guides\/[^\s\)\]\,\;]+/g,
-        /https:\/\/(?:www\.)?inngest\.com\/docs\/reference\/[^\s\)\]\,\;]+/g,
-        /https:\/\/(?:www\.)?inngest\.com\/blog\/[^\s\)\]\,\;]+/g,
-        /https:\/\/(?:www\.)?inngest\.com\/[^\s\)\]\,\;]+/g
+        /https:\/\/(?:www\.)?inngest\.com\/docs\/[^\s\)\]\,\;\"\'\`]+/g,
+        /https:\/\/(?:www\.)?inngest\.com\/docs\/guides\/[^\s\)\]\,\;\"\'\`]+/g,
+        /https:\/\/(?:www\.)?inngest\.com\/docs\/reference\/[^\s\)\]\,\;\"\'\`]+/g,
+        /https:\/\/(?:www\.)?inngest\.com\/docs\/learn\/[^\s\)\]\,\;\"\'\`]+/g,
+        /https:\/\/(?:www\.)?inngest\.com\/blog\/[^\s\)\]\,\;\"\'\`]+/g,
+        /https:\/\/(?:www\.)?inngest\.com\/[^\s\)\]\,\;\"\'\`]+/g,
+        // Also look for relative URLs that might be in the content
+        /\/docs\/[^\s\)\]\,\;\"\'\`]+/g,
+        /\/docs\/guides\/[^\s\)\]\,\;\"\'\`]+/g,
+        /\/docs\/reference\/[^\s\)\]\,\;\"\'\`]+/g
       ];
       
       urlPatterns.forEach(pattern => {
@@ -254,32 +259,61 @@ The more specific you can be about your **production scenario, scale, and constr
         if (matches) {
           matches.forEach(url => {
             // Clean up trailing characters and fragments
-            const cleanUrl = url.replace(/[.,;:!?\]\)]*$/, '').replace(/#.*$/, '');
+            let cleanUrl = url.replace(/[.,;:!?\]\)]*$/, '').replace(/#.*$/, '');
+            
+            // Convert relative URLs to absolute
+            if (cleanUrl.startsWith('/docs/')) {
+              cleanUrl = `https://www.inngest.com${cleanUrl}`;
+            }
+            
             if (cleanUrl.length > 20) { // Only include substantial URLs
               allUrls.add(cleanUrl);
             }
           });
         }
       });
+      
+      // Also extract sources from metadata if available
+      if (result.source && result.source.startsWith('http')) {
+        allUrls.add(result.source);
+      }
     });
 
     // Convert to array and sort for consistent display
     let sources = Array.from(allUrls).sort();
 
-    // If no URLs found, fall back to section names
+    // If no URLs found, be more creative with section-based sources
     if (sources.length === 0) {
       const sections = new Set<string>();
       searchResults.forEach(result => {
+        // Try to extract section information
         if (result.metadata?.section && typeof result.metadata.section === 'string') {
-          sections.add(`Inngest Docs: ${result.metadata.section}`);
+          sections.add(result.metadata.section);
+        }
+        // Also try to extract from source metadata
+        if (result.metadata?.source && typeof result.metadata.source === 'string') {
+          sections.add(result.metadata.source);
+        }
+        // Try to create meaningful source references
+        if (result.source && typeof result.source === 'string') {
+          sections.add(result.source);
         }
       });
-      sources = Array.from(sections);
+      
+      // Convert sections to documentation references
+      sources = Array.from(sections).map(section => {
+        if (section.startsWith('http')) {
+          return section;
+        }
+        return `Inngest Documentation: ${section}`;
+      });
     }
 
-    // If still no sources, use domain name as fallback
+    // If still no sources, use the search results themselves as references
     if (sources.length === 0) {
-      sources = ['inngest-official-docs'];
+      sources = searchResults.slice(0, 3).map((result, index) => 
+        `Inngest Docs Reference ${index + 1}: ${result.content.substring(0, 50)}...`
+      );
     }
 
     // Generate streaming response
@@ -301,15 +335,23 @@ ${contextText}
 
 QUESTION: ${message}
 
-Please provide a comprehensive, production-ready response that includes:
+IMPORTANT INSTRUCTIONS:
+- Base your response ONLY on the documentation provided above
+- Reference specific parts of the documentation when making claims
+- Include ALL relevant Inngest documentation URLs from the content
+- If a feature isn't in the documentation, do not mention it
+- Provide working code examples directly from or adapted from the documentation
+- Use specific configuration values only if they appear in the documentation
+- If information is missing, recommend checking the latest Inngest documentation
 
-1. **Core Solution**: Basic implementation approach
-2. **Production Scale**: How this works with 1000+ items, database considerations, memory usage
-3. **Specific Configuration**: Exact batch sizes, concurrency limits, timeout values
-4. **Error Handling**: Comprehensive failure scenarios and recovery patterns
-5. **Performance Analysis**: Expected timing, resource usage, and tradeoffs
+Please provide a comprehensive response following the structured format with:
+1. **Immediate Solution** - Direct fix based on documentation
+2. **Production Architecture** - Scale considerations from documentation  
+3. **Concrete Configuration** - Values from documentation or "refer to documentation"
+4. **Error Handling** - Only documented error handling features
+5. **Performance Analysis** - Based on documentation or recommend testing
 
-Include specific Inngest documentation URLs when referencing features. Always consider real-world production constraints and provide concrete, actionable guidance with specific numbers and configurations.`
+Always cite the specific documentation sections you're referencing and ensure all sources are included in your response.`
         }
       ],
       stream: true
@@ -321,5 +363,49 @@ Include specific Inngest documentation URLs when referencing features. Always co
     console.error('Error generating RAG response:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     throw new Error(`Failed to generate response: ${errorMessage}`);
+  }
+}
+
+/**
+ * Classify if a query is generic/testing or a specific technical question
+ * Uses a cheap, fast AI call to determine intent
+ */
+export async function classifyQuery(message: string): Promise<'generic' | 'specific'> {
+  try {
+    const openai = getOpenAIClient();
+    
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini', // Cheaper and faster than main models
+      temperature: 0, // Deterministic for classification
+      max_tokens: 10, // Very short response
+      messages: [
+        {
+          role: 'system',
+          content: `Classify user messages as either "generic" or "specific".
+
+GENERIC: Greetings, tests, vague requests, or non-technical questions
+- Examples: "hi", "hello", "test", "help", "what is this", "ping", "123", "hey there", "testing this bot"
+
+SPECIFIC: Technical questions that need documentation lookup
+- Examples: "How do I create a function?", "What is rate limiting?", "Deploy to production", "batch processing", "error handling"
+
+Respond with only one word: "generic" or "specific"`
+        },
+        {
+          role: 'user',
+          content: message
+        }
+      ]
+    });
+
+    const classification = response.choices[0]?.message?.content?.toLowerCase().trim() || 'specific';
+    
+    // Safety fallback - if not clearly "generic", treat as "specific"
+    return classification === 'generic' ? 'generic' : 'specific';
+    
+  } catch (error) {
+    console.error('Error classifying query:', error);
+    // On error, default to 'specific' to avoid missing real questions
+    return 'specific';
   }
 }

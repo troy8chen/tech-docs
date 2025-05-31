@@ -5,6 +5,7 @@ export interface ExpertiseDomain {
     namespace: string;           // Pinecone namespace
     systemPrompt: string;
     source: string;             // URL or 'manual'
+    officialDocUrls?: string[]; // List of official documentation URLs to crawl
     isActive: boolean;
     // Optional properties for dynamic domains
     id?: string;
