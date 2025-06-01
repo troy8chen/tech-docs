@@ -301,19 +301,21 @@ The more specific you can be about your **production scenario, scale, and constr
         if (result.metadata?.source && typeof result.metadata.source === 'string') {
           sections.add(result.metadata.source);
         }
-        // Try to create meaningful source references
-        if (result.source && typeof result.source === 'string') {
+        // Try to create meaningful source references - BUT EXCLUDE raw ingestion URLs
+        if (result.source && typeof result.source === 'string' && !excludeUrls.has(result.source)) {
           sections.add(result.source);
         }
       });
       
-      // Convert sections to documentation references
-      sources = Array.from(sections).map(section => {
-        if (section.startsWith('http')) {
-          return section;
-        }
-        return `Inngest Documentation: ${section}`;
-      });
+      // Convert sections to documentation references, filtering out excluded URLs
+      sources = Array.from(sections)
+        .filter(section => !excludeUrls.has(section)) // Additional filter to be safe
+        .map(section => {
+          if (section.startsWith('http')) {
+            return section;
+          }
+          return `Inngest Documentation: ${section}`;
+        });
     }
 
     // If still no sources, use the search results themselves as references
@@ -322,6 +324,16 @@ The more specific you can be about your **production scenario, scale, and constr
         `Inngest Docs Reference ${index + 1}: ${result.content.substring(0, 50)}...`
       );
     }
+
+    // Final safety filter to remove any excluded URLs that might have slipped through
+    sources = sources.filter(source => {
+      // If it's a URL, check if it's in the exclude list
+      if (source.startsWith('http')) {
+        return !excludeUrls.has(source);
+      }
+      // If it's not a URL, keep it
+      return true;
+    });
 
     // Generate streaming response
     const completion = await getOpenAIClient().chat.completions.create({

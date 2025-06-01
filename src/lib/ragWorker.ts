@@ -391,46 +391,185 @@ Ask me specific questions about:
   private checkForCachedResponse(query: string): { response: string; sources: string[] } | null {
     const normalizedQuery = query.toLowerCase();
     
-    // Function Not Triggering
-    if (normalizedQuery.includes('function') && 
-        (normalizedQuery.includes('trigger') || normalizedQuery.includes('not work') || 
-         normalizedQuery.includes('show up') || normalizedQuery.includes('dev server') ||
-         normalizedQuery.includes("isn't") || normalizedQuery.includes("doesn't"))) {
-      return this.getGenericResponse(query);
+    // 1. Function Not Triggering
+    if ((normalizedQuery.includes('function') && (normalizedQuery.includes('not') || normalizedQuery.includes('wont') || normalizedQuery.includes("won't") || normalizedQuery.includes('trigger'))) ||
+        (normalizedQuery.includes('missing') && normalizedQuery.includes('serve')) ||
+        normalizedQuery.includes('endpoint not found')) {
+      return {
+        response: `🔧 **Function Not Triggering? Common Fix:**
+
+**Missing \`serve\` export in \`/api/inngest\`:**
+\`\`\`typescript
+// src/app/api/inngest/route.ts
+import { serve } from "inngest/next";
+import { inngest } from "@/inngest/client";
+import { myFunction } from "@/inngest/functions";
+
+export const { GET, POST, PUT } = serve({
+  client: inngest,
+  functions: [myFunction] // ← Add your function here!
+});
+\`\`\`
+
+**Check endpoint works:** Visit \`http://localhost:3000/api/inngest\`
+Should return: \`{"message": "Inngest endpoint configured correctly"}\``,
+        sources: ['https://www.inngest.com/docs/reference/functions/create', 'https://www.inngest.com/docs/quick-start']
+      };
     }
     
-    // Error Handling & Retries
+    // 2. Error Handling & Retries
     if ((normalizedQuery.includes('error') && (normalizedQuery.includes('handling') || normalizedQuery.includes('retry') || normalizedQuery.includes('retries'))) ||
-        (normalizedQuery.includes('implement') && normalizedQuery.includes('retry')) ||
-        (normalizedQuery.includes('retry') || normalizedQuery.includes('retries'))) {
-      return this.getGenericResponse(query);
+        normalizedQuery.includes('nonretriableerror') ||
+        (normalizedQuery.includes('automatic') && normalizedQuery.includes('retry'))) {
+      return {
+        response: `⚠️ **Error Handling & Retries:**
+
+**Automatic retries (default: 4 attempts):**
+\`\`\`typescript
+export const myFunction = inngest.createFunction(
+  { id: "my-function", retries: 3 }, // Custom retry count
+  { event: "my/event" },
+  async ({ event, step }) => {
+    // This will retry automatically on failure
+    return await step.run("api-call", async () => {
+      return await externalAPI.call();
+    });
+  }
+);
+\`\`\`
+
+**Stop retries with NonRetriableError:**
+\`\`\`typescript
+import { NonRetriableError } from "inngest";
+
+throw new NonRetriableError("User not found - don't retry");
+\`\`\``,
+        sources: ['https://www.inngest.com/docs/learn/inngest-functions', 'https://www.inngest.com/docs/reference/functions/create']
+      };
     }
     
-    // Steps & Timeouts
-    if ((normalizedQuery.includes('step') && (normalizedQuery.includes('timeout') || normalizedQuery.includes('break') || normalizedQuery.includes('split'))) ||
-        (normalizedQuery.includes('break') && normalizedQuery.includes('function')) ||
-        (normalizedQuery.includes('avoid') && (normalizedQuery.includes('timeout') || normalizedQuery.includes('times out') || normalizedQuery.includes('timed out'))) ||
-        (normalizedQuery.includes('timeout') || normalizedQuery.includes('times out') || normalizedQuery.includes('timed out'))) {
-      return this.getGenericResponse(query);
+    // 3. Steps & Timeouts
+    if ((normalizedQuery.includes('step') && (normalizedQuery.includes('timeout') || normalizedQuery.includes('time') || normalizedQuery.includes('times out'))) ||
+        (normalizedQuery.includes('function') && normalizedQuery.includes('timeout'))) {
+      return {
+        response: `⏱️ **Steps Prevent Timeouts:**
+
+**Break long functions into steps:**
+\`\`\`typescript
+export const longProcess = inngest.createFunction(
+  { id: "long-process" },
+  { event: "process/start" },
+  async ({ event, step }) => {
+    // Each step gets fresh 5min timeout
+    const data = await step.run("fetch-data", async () => {
+      return await heavyDataFetch(); // Won't timeout step
+    });
+    
+    const processed = await step.run("process-data", async () => {
+      return await processData(data); // Fresh timeout here
+    });
+    
+    return await step.run("save-result", async () => {
+      return await saveResult(processed);
+    });
+  }
+);
+\`\`\`
+
+**Benefits**: Each step gets full timeout, automatic checkpointing`,
+        sources: ['https://www.inngest.com/docs/learn/inngest-functions']
+      };
     }
     
-    // Rate Limiting
+    // 4. Rate Limiting
     if ((normalizedQuery.includes('rate') && (normalizedQuery.includes('limit') || normalizedQuery.includes('limiting') || normalizedQuery.includes('throttle'))) ||
         normalizedQuery.includes('concurrency')) {
-      return this.getGenericResponse(query);
+      return {
+        response: `🚦 **Rate Limiting in Inngest:**
+
+**Built-in concurrency control:**
+\`\`\`typescript
+export const rateLimitedFunction = inngest.createFunction(
+  { 
+    id: "api-calls",
+    concurrency: {
+      limit: 5 // Max 5 concurrent executions
+    }
+  },
+  { event: "api.call" },
+  async ({ event, step }) => {
+    // Only 5 of these will run simultaneously
+    return await step.run("api-call", async () => {
+      return await externalApiCall(event.data);
+    });
+  }
+);
+\`\`\`
+
+**Custom rate limiting with steps:**
+\`\`\`typescript
+await step.sleep("rate-limit", { seconds: 1 }); // 1 second delay
+\`\`\``,
+        sources: ['https://www.inngest.com/docs/reference/functions/create']
+      };
     }
     
-    // Local Development Setup
+    // 5. Local Development Setup
     if ((normalizedQuery.includes('local') && (normalizedQuery.includes('development') || normalizedQuery.includes('dev') || normalizedQuery.includes('setup'))) ||
         (normalizedQuery.includes('set up') && normalizedQuery.includes('inngest')) ||
         normalizedQuery.includes('inngest-cli')) {
-      return this.getGenericResponse(query);
+      return {
+        response: `🛠️ **Local Development Setup:**
+
+**1. Install Inngest CLI:**
+\`\`\`bash
+npm install -g inngest-cli
+\`\`\`
+
+**2. Start your Next.js app:**
+\`\`\`bash
+npm run dev  # Your app on localhost:3000
+\`\`\`
+
+**3. Start Inngest Dev Server:**
+\`\`\`bash
+npx inngest-cli@latest dev
+# Opens dashboard at http://localhost:8288
+\`\`\`
+
+**4. Test your setup:**
+- Visit \`http://localhost:3000/api/inngest\` (should show functions)
+- Visit \`http://localhost:8288\` (Inngest dashboard)
+- Send test events from the dashboard`,
+        sources: ['https://www.inngest.com/docs/local-development', 'https://www.inngest.com/docs/quick-start']
+      };
     }
     
-    // Vercel Deployment
+    // 6. Vercel Deployment
     if ((normalizedQuery.includes('deploy') && (normalizedQuery.includes('vercel') || normalizedQuery.includes('production') || normalizedQuery.includes('deployment'))) ||
         (normalizedQuery.includes('vercel') && normalizedQuery.includes('inngest'))) {
-      return this.getGenericResponse(query);
+      return {
+        response: `🚀 **Deploy to Vercel:**
+
+**1. Set environment variables in Vercel:**
+\`\`\`
+INNGEST_EVENT_KEY=your_event_key
+INNGEST_SIGNING_KEY=your_signing_key
+\`\`\`
+
+**2. Deploy normally:**
+\`\`\`bash
+vercel deploy
+\`\`\`
+
+**3. Register your deployed endpoint:**
+Visit Inngest dashboard → Apps → Add your deployed URL:
+\`https://your-app.vercel.app/api/inngest\`
+
+**4. Test with production events**
+Your functions will now handle production events automatically!`,
+        sources: ['https://www.inngest.com/docs/deploy/vercel']
+      };
     }
     
     return null; // No cached response found

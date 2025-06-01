@@ -40,6 +40,34 @@ const EXAMPLE_QUESTIONS = [
   "How do I deploy Inngest functions to Vercel?"
 ];
 
+// Helper function to extract readable titles from URLs
+function getSourceTitle(source: string): string {
+  if (!source.startsWith('http')) {
+    return source;
+  }
+
+  // Extract page title from URL path
+  const urlPath = source.replace('https://www.inngest.com', '');
+  let title = urlPath
+    .split('/')
+    .pop()
+    ?.replace(/-/g, ' ')
+    ?.replace(/^\w/, c => c.toUpperCase()) || 'Documentation';
+  
+  // Special cases for common patterns
+  if (urlPath.includes('/docs/functions/')) title = 'Functions Guide';
+  if (urlPath.includes('/docs/local-development')) title = 'Local Development';
+  if (urlPath.includes('/docs/deploy/')) title = 'Deployment Guide';
+  if (urlPath.includes('/docs/reference/')) title = 'API Reference';
+  if (urlPath.includes('/docs/guides/')) title = 'Implementation Guide';
+  if (urlPath.includes('/docs/quick-start')) title = 'Quick Start';
+  if (urlPath.includes('/docs/concepts/')) title = 'Core Concepts';
+  if (urlPath.includes('/docs/learn/')) title = 'Learning Resources';
+  if (urlPath === '/docs' || urlPath === '/docs/') title = 'Documentation Home';
+  
+  return title;
+}
+
 export function ChatInterface({ selectedDomain = 'inngest' }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -291,11 +319,29 @@ export function ChatInterface({ selectedDomain = 'inngest' }: ChatInterfaceProps
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-1">
-                    {currentSources.map((source, index) => (
-                      <Badge key={index} variant="outline" className="text-xs">
-                        {source}
-                      </Badge>
-                    ))}
+                    {currentSources.map((source, index) => {
+                      const isUrl = source.startsWith('http://') || source.startsWith('https://');
+                      
+                      if (isUrl) {
+                        const title = getSourceTitle(source);
+                        return (
+                          <Badge 
+                            key={index} 
+                            variant="outline" 
+                            className="text-xs cursor-pointer hover:bg-muted" 
+                            title={source}
+                          >
+                            {title}
+                          </Badge>
+                        );
+                      }
+                      
+                      return (
+                        <Badge key={index} variant="outline" className="text-xs">
+                          {source}
+                        </Badge>
+                      );
+                    })}
                   </div>
                 </div>
               )}
