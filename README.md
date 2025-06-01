@@ -86,16 +86,22 @@ src/
 │   ├── ai.ts              # Core RAG pipeline (shared)
 │   ├── ragWorker.ts       # Redis worker for external integrations
 │   ├── docs.ts            # Document ingestion and chunking
-│   └── config.ts          # Domain configurations
+│   ├── config.ts          # Domain configurations
+│   └── utils.ts           # Utility functions
 ├── app/api/
 │   ├── chat/route.ts      # Web interface streaming API
 │   └── ingest/route.ts    # Document upload API
 ├── components/
-│   ├── chat-interface.tsx # Web chat UI
-│   └── upload-interface.tsx # Document upload UI
+│   ├── chat-interface.tsx # Web chat UI (includes upload functionality)
+│   ├── message-bubble.tsx # Message display component
+│   ├── markdown-renderer.tsx # Markdown rendering with syntax highlighting
+│   └── ui/                # Shadcn UI components
 └── scripts/
     ├── rag-worker.ts      # RAG worker startup script
-    └── ingest-docs.ts     # Bulk documentation ingestion
+    ├── ingest-docs.ts     # Bulk documentation ingestion
+    ├── check-docs-freshness.ts # Documentation monitoring
+    ├── test-common-responses.ts # Response quality testing
+    └── git-workflow.sh    # GitFlow workflow helper
 ```
 
 ## 🚀 Quick Start
@@ -142,7 +148,7 @@ npm run dev
 
 ### Features
 - **Real-time Chat**: Ask Inngest questions with streaming responses
-- **Document Upload**: Add custom knowledge via web UI
+- **Document Upload**: Add custom knowledge via integrated web UI
 - **Academic Citations**: Numbered references with clickable links
 - **Code Highlighting**: Professional syntax highlighting with copy buttons
 
@@ -237,6 +243,9 @@ npm run rag-worker   # Start RAG worker (Mode 2)
 npm run build        # Production build
 npm run lint         # ESLint checking
 npm run ingest       # Bulk documentation ingestion
+npm run check-docs   # Check documentation freshness
+npm run test-responses # Test response quality
+npm run workflow     # GitFlow workflow helper
 ```
 
 ### Development Workflow
