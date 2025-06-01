@@ -239,6 +239,12 @@ The more specific you can be about your **production scenario, scale, and constr
     // Extract URLs from search results content with broader patterns
     const allUrls = new Set<string>();
     
+    // URLs to exclude from sources (raw ingestion sources, not user-friendly)
+    const excludeUrls = new Set([
+      'https://www.inngest.com/llms-full.txt',
+      'https://www.inngest.com/llms.txt'
+    ]);
+    
     searchResults.forEach(result => {
       // Look for any Inngest URLs (docs, guides, blog, etc.)
       const urlPatterns = [
@@ -266,15 +272,16 @@ The more specific you can be about your **production scenario, scale, and constr
               cleanUrl = `https://www.inngest.com${cleanUrl}`;
             }
             
-            if (cleanUrl.length > 20) { // Only include substantial URLs
+            // Only include substantial URLs that aren't raw ingestion sources
+            if (cleanUrl.length > 20 && !excludeUrls.has(cleanUrl)) {
               allUrls.add(cleanUrl);
             }
           });
         }
       });
       
-      // Also extract sources from metadata if available
-      if (result.source && result.source.startsWith('http')) {
+      // Also extract sources from metadata if available, but exclude raw ingestion URLs
+      if (result.source && result.source.startsWith('http') && !excludeUrls.has(result.source)) {
         allUrls.add(result.source);
       }
     });
