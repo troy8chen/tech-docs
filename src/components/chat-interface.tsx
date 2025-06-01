@@ -1,21 +1,13 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { MessageBubble } from './message-bubble';
 import { Send, Loader2, Zap, MessageSquare, ExternalLink } from 'lucide-react';
 import { MarkdownRenderer } from './markdown-renderer';
-
-interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  sources?: string[];
-  timestamp: Date;
-  domain?: string;
-}
+import type { ChatMessage } from '@/types';
 
 interface StreamData {
   type: 'metadata' | 'content' | 'done' | 'error' | 'completion';
@@ -98,6 +90,7 @@ export function ChatInterface({ selectedDomain = 'inngest' }: ChatInterfaceProps
       role: 'user',
       content: messageText.trim(),
       timestamp: new Date(),
+      domain: selectedDomain,
     };
 
     setMessages(prev => [...prev, userMessage]);
